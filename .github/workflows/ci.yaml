@@ -1,0 +1,81 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * 1"   # weekly, to catch new kgateway and Snellius releases
+
+permissions:
+  contents: read
+
+env:
+  KIND_VERSION: v0.33.0
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: shellcheck -x install.sh uninstall.sh show-credentials.sh kind/create.sh test/e2e.sh lib/common.sh
+      - name: yamllint
+        run: |
+          pip install --quiet yamllint
+          yamllint -d '{extends: relaxed, rules: {line-length: disable}}' manifests values kind .github
+
+  e2e:
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [secure, local]
+    env:
+      GITHUB_TOKEN: ${{ github.token }}   # only raises the GitHub API rate limit for version lookups
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install kind
+        run: |
+          curl -fsSLo kind "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64"
+          sudo install kind /usr/local/bin/kind
+      - name: Create the cluster
+        run: |
+          if [[ ${{ matrix.mode }} == secure ]]; then
+            ./kind/create.sh
+          else
+            kind create cluster --name snellius-demo --wait 120s
+          fi
+      - name: Install
+        run: |
+          flags=(--context kind-snellius-demo --yes)
+          [[ ${{ matrix.mode }} == secure ]] && flags+=(--secure)
+          ./install.sh "${flags[@]}"
+      - name: Wait for the demo pods
+        run: |
+          for ns in kgateway-system snellius infra team-a team-b team-c; do
+            kubectl --context kind-snellius-demo -n "$ns" wait --for=condition=Ready pods --all --timeout=180s
+          done
+      - name: Check what each user sees
+        run: |
+          if [[ ${{ matrix.mode }} == secure ]]; then
+            ./test/e2e.sh --context kind-snellius-demo
+          else
+            ./test/e2e.sh --context kind-snellius-demo --local
+          fi
+      - name: Uninstall
+        run: |
+          ./uninstall.sh --context kind-snellius-demo --yes
+          left=$(kubectl --context kind-snellius-demo get ns -o name | grep -E 'snellius|keycloak|kgateway|team-|infra' || true)
+          [[ -z $left ]] || { echo "left behind: $left"; exit 1; }
+      - name: Diagnostics
+        if: failure()
+        run: |
+          kubectl --context kind-snellius-demo get pods -A -o wide || true
+          kubectl --context kind-snellius-demo -n snellius logs deploy/ui-snellius --tail=100 || true
+          kubectl --context kind-snellius-demo -n keycloak logs deploy/keycloak --tail=100 || true
+          kubectl --context kind-snellius-demo -n kube-system logs -l component=kube-apiserver --tail=100 | grep -i oidc || true
