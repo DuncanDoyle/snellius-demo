@@ -38,7 +38,7 @@ render_auth_config "$(issuer_url "$ISSUER_HOST")" v1 >"$STATE_DIR/kind/authentic
 
 kind_args=(--name "$NAME")
 [[ -n $KUBECONFIG_FILE ]] && kind_args+=(--kubeconfig "$KUBECONFIG_FILE")
-if kind get clusters 2>/dev/null | grep -qx "$NAME"; then
+if kind get clusters 2>/dev/null | grep -x "$NAME" >/dev/null; then
   log "kind cluster $NAME exists"
 else
   log "Creating kind cluster $NAME"

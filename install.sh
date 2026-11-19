@@ -73,8 +73,9 @@ fi
 [[ $KGW_VERSION == v* ]] || KGW_VERSION=v$KGW_VERSION
 if [[ -z $GWAPI_VERSION ]]; then
   # The Gateway API version kgateway's release is built against, from its go.mod.
-  GWAPI_VERSION=$(curl -fsSL "https://raw.githubusercontent.com/kgateway-dev/kgateway/$KGW_VERSION/go.mod" |
-    awk '$1 == "sigs.k8s.io/gateway-api" { print $2; exit }')
+  # Read go.mod whole first: awk exits early, which would fail curl under pipefail.
+  gomod=$(curl -fsSL "https://raw.githubusercontent.com/kgateway-dev/kgateway/$KGW_VERSION/go.mod")
+  GWAPI_VERSION=$(awk '$1 == "sigs.k8s.io/gateway-api" { print $2; exit }' <<<"$gomod")
   [[ -n $GWAPI_VERSION ]] || die "could not find the Gateway API version of kgateway $KGW_VERSION; pass --gateway-api-version"
 fi
 if [[ -z $SNELLIUS_VERSION ]]; then
