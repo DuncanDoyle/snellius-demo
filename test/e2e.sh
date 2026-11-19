@@ -24,7 +24,8 @@ TMP=$(mktemp -d)
 chmod 700 "$TMP"
 PF_PID=""
 cleanup() {
-  [[ -n $PF_PID ]] && { kill "$PF_PID"; wait "$PF_PID"; } 2>/dev/null
+  # wait reports the killed port-forward's status, which is not this script's.
+  [[ -n $PF_PID ]] && { kill "$PF_PID"; wait "$PF_PID" || true; } 2>/dev/null
   rm -rf "$TMP"
 }
 trap cleanup EXIT
