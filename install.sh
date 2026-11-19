@@ -14,7 +14,7 @@ Usage: $0 [flags]
   --issuer-host HOST        host name or IP of Keycloak's issuer URL (default: $DEFAULT_ISSUER_HOST)
   --kgateway-version VER    kgateway release, e.g. v2.5.2 (default: the latest release)
   --gateway-api-version VER Gateway API release (default: the one that kgateway release is built on)
-  --snellius-version VER    Snellius chart version, e.g. 0.8.0 (default: the latest release)
+  --snellius-version VER    Snellius chart version, e.g. 0.8.2 (default: the latest release)
   --ui-port PORT            local port of the Snellius port-forward (default: 8080)
   --yes                     do not ask for confirmation
   -h, --help                show this help

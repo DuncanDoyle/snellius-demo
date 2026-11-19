@@ -13,7 +13,7 @@ You need `kubectl`, `helm`, `openssl`, `curl` and `jq`. The scripts always pass 
 kubectl --context <your-context> -n snellius port-forward svc/ui-snellius 8080:80
 ```
 
-Open http://localhost:8080. Local mode has no sign-in: whoever can port-forward to Snellius sees everything it can read.
+Open http://localhost:8080. Local mode has no sign-in: whoever can port-forward to Snellius sees everything it can read. The first page load in each browser tab plays a short intro of the Snellius prism; a click or key press skips it.
 
 ### Secure mode, on kind
 
@@ -24,7 +24,7 @@ Open http://localhost:8080. Local mode has no sign-in: whoever can port-forward 
 kubectl --context kind-snellius-demo -n snellius port-forward svc/ui-snellius 8080:80
 ```
 
-Open http://localhost:8080. Snellius sends you to Keycloak at https://keycloak.localhost:30443 to sign in.
+Open http://localhost:8080. Snellius sends you to Keycloak at https://keycloak.localhost:30443 to sign in. After you sign in, a short intro of the Snellius prism plays while the overview loads.
 
 Secure mode only works where you can make the API server trust Keycloak. [docs/api-server-oidc.md](docs/api-server-oidc.md) explains how for kind, minikube, kubeadm and managed clusters.
 
@@ -38,7 +38,7 @@ Secure mode only works where you can make the API server trust Keycloak. [docs/a
 | `--issuer-host` | `keycloak.localhost` | Host name or IP in Keycloak's issuer URL, `https://<host>:30443/realms/snellius`. |
 | `--kgateway-version` | latest release | A kgateway release, such as `v2.5.2`. |
 | `--gateway-api-version` | from kgateway's `go.mod` | The Gateway API release whose standard CRDs are installed. |
-| `--snellius-version` | latest release | A Snellius chart version, such as `0.8.0`. |
+| `--snellius-version` | latest release | A Snellius chart version, such as `0.8.2`. |
 | `--ui-port` | `8080` | The local port of the Snellius port-forward. In secure mode it is part of the redirect URL. |
 
 The environment variables `KGATEWAY_VERSION`, `GATEWAY_API_VERSION`, `SNELLIUS_VERSION`, `ISSUER_HOST` and `UI_PORT` set the same values. Running `install.sh` again is safe. It upgrades what is there and keeps the generated passwords.
