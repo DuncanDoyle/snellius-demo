@@ -1,0 +1,30 @@
+# A kind cluster whose API server trusts the demo's Keycloak.
+# Create it with kind/create.sh, which first writes .demo/kind/authentication-config.yaml
+# (mounted below; the hostPath is relative to the repository root) and then
+# maps the issuer host name to the node's IP inside the node.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraMounts:
+      - hostPath: .demo/kind
+        containerPath: /etc/kubernetes/snellius-oidc
+        readOnly: true
+    # Keycloak's NodePort, so the browser reaches https://keycloak.localhost:30443.
+    extraPortMappings:
+      - containerPort: 30443
+        hostPort: 30443
+        protocol: TCP
+    kubeadmConfigPatches:
+      - |
+        kind: ClusterConfiguration
+        apiServer:
+          extraArgs:
+            - name: authentication-config
+              value: /etc/kubernetes/snellius-oidc/authentication-config.yaml
+          extraVolumes:
+            - name: snellius-oidc
+              hostPath: /etc/kubernetes/snellius-oidc
+              mountPath: /etc/kubernetes/snellius-oidc
+              readOnly: true
+              pathType: Directory
