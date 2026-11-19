@@ -1,0 +1,18 @@
+# Snellius in secure mode, signed in through the demo's Keycloak.
+# install.sh sets auth.oidc.issuerURL, auth.oidc.redirectURL and hostAliases,
+# and creates the Secret snellius-oidc and the ConfigMap snellius-oidc-ca.
+auth:
+  mode: secure
+  oidc:
+    clientID: snellius        # the API server accepts it as an audience
+    # Reached through kubectl port-forward. A redirect on localhost may use plain http.
+    # install.sh replaces the port with --ui-port.
+    redirectURL: http://localhost:8080/auth/callback
+    # Keycloak rejects unknown scopes; a client mapper adds the groups claim instead.
+    scopes: [openid, profile, email, offline_access]
+    clientSecret:
+      existingSecret: snellius-oidc
+    ca:
+      existingConfigMap: snellius-oidc-ca
+  session:
+    cookieSecure: false       # plain http on localhost

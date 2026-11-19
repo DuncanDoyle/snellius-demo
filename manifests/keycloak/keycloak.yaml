@@ -1,0 +1,159 @@
+# Keycloak for secure mode, in dev mode with its embedded database.
+# install.sh creates the namespace and these objects that hold generated or local values:
+#   Secret keycloak-credentials: admin-password, alice-password, bob-password, client-secret
+#   Secret keycloak-tls: Keycloak's serving certificate, issued by the demo CA
+#   ConfigMap keycloak-settings: hostname, the issuer's base URL, and ui-port,
+#   the local port of the Snellius port-forward
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm
+  namespace: keycloak
+  labels: {app.kubernetes.io/part-of: snellius-demo}
+data:
+  # Keycloak fills ${...} from the container's environment when it imports the realm.
+  # The groups claim comes from a client mapper, so Snellius asks for no "groups" scope:
+  # Keycloak rejects scopes it does not know. The users' default-roles-snellius
+  # role carries offline_access, which Snellius asks for.
+  snellius-realm.json: |
+    {
+      "realm": "snellius",
+      "enabled": true,
+      "displayName": "Snellius demo",
+      "groups": [
+        {"name": "platform-admins"},
+        {"name": "app-devs"}
+      ],
+      "clients": [
+        {
+          "clientId": "snellius",
+          "name": "Snellius",
+          "enabled": true,
+          "protocol": "openid-connect",
+          "publicClient": false,
+          "clientAuthenticatorType": "client-secret",
+          "secret": "${SNELLIUS_CLIENT_SECRET}",
+          "standardFlowEnabled": true,
+          "directAccessGrantsEnabled": true,
+          "redirectUris": ["http://localhost:${UI_PORT}/auth/callback", "http://127.0.0.1:${UI_PORT}/auth/callback"],
+          "webOrigins": ["http://localhost:${UI_PORT}", "http://127.0.0.1:${UI_PORT}"],
+          "attributes": {
+            "pkce.code.challenge.method": "S256",
+            "post.logout.redirect.uris": "http://localhost:${UI_PORT}/##http://127.0.0.1:${UI_PORT}/"
+          },
+          "protocolMappers": [
+            {
+              "name": "groups",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-group-membership-mapper",
+              "config": {
+                "full.path": "false",
+                "claim.name": "groups",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "userinfo.token.claim": "true"
+              }
+            }
+          ],
+          "defaultClientScopes": ["web-origins", "acr", "basic", "profile", "email", "roles"],
+          "optionalClientScopes": ["offline_access"]
+        }
+      ],
+      "users": [
+        {
+          "username": "alice",
+          "enabled": true,
+          "email": "alice@example.com",
+          "emailVerified": true,
+          "firstName": "Alice",
+          "lastName": "Platform",
+          "credentials": [{"type": "password", "value": "${ALICE_PASSWORD}", "temporary": false}],
+          "groups": ["platform-admins"],
+          "realmRoles": ["default-roles-snellius"]
+        },
+        {
+          "username": "bob",
+          "enabled": true,
+          "email": "bob@example.com",
+          "emailVerified": true,
+          "firstName": "Bob",
+          "lastName": "Developer",
+          "credentials": [{"type": "password", "value": "${BOB_PASSWORD}", "temporary": false}],
+          "groups": ["app-devs"],
+          "realmRoles": ["default-roles-snellius"]
+        }
+      ]
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: keycloak
+  labels: {app.kubernetes.io/part-of: snellius-demo}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: keycloak}
+  template:
+    metadata:
+      labels: {app: keycloak}
+    spec:
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.8.2
+          # Dev mode re-imports the realm on every start, so a restart resets it.
+          args:
+            - start-dev
+            - --import-realm
+            - --https-certificate-file=/etc/keycloak/tls/tls.crt
+            - --https-certificate-key-file=/etc/keycloak/tls/tls.key
+            - --http-enabled=false
+            - --health-enabled=true
+          env:
+            - name: KC_HOSTNAME
+              valueFrom: {configMapKeyRef: {name: keycloak-settings, key: hostname}}
+            - name: UI_PORT
+              valueFrom: {configMapKeyRef: {name: keycloak-settings, key: ui-port}}
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              value: admin
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom: {secretKeyRef: {name: keycloak-credentials, key: admin-password}}
+            - name: SNELLIUS_CLIENT_SECRET
+              valueFrom: {secretKeyRef: {name: keycloak-credentials, key: client-secret}}
+            - name: ALICE_PASSWORD
+              valueFrom: {secretKeyRef: {name: keycloak-credentials, key: alice-password}}
+            - name: BOB_PASSWORD
+              valueFrom: {secretKeyRef: {name: keycloak-credentials, key: bob-password}}
+          ports:
+            - {name: https, containerPort: 8443}
+            - {name: management, containerPort: 9000}
+          readinessProbe:
+            httpGet: {path: /health/ready, port: 9000, scheme: HTTPS}
+            initialDelaySeconds: 15
+            periodSeconds: 5
+          resources:
+            requests: {cpu: 200m, memory: 512Mi}
+            limits: {memory: 1Gi}
+          volumeMounts:
+            - {name: tls, mountPath: /etc/keycloak/tls, readOnly: true}
+            - {name: realm, mountPath: /opt/keycloak/data/import, readOnly: true}
+      volumes:
+        - name: tls
+          secret: {secretName: keycloak-tls}
+        - name: realm
+          configMap: {name: keycloak-realm}
+---
+# The Service port equals the NodePort, so https://<issuer-host>:30443 works
+# through the node and through the Service's cluster IP alike.
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  namespace: keycloak
+  labels: {app.kubernetes.io/part-of: snellius-demo}
+spec:
+  type: NodePort
+  selector: {app: keycloak}
+  ports:
+    - {name: https, port: 30443, targetPort: 8443, nodePort: 30443}

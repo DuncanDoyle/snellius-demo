@@ -1,0 +1,260 @@
+# The demo's use cases: Gateways, routes and backends in four namespaces.
+# In secure mode bob may read team-a and team-b; infra and team-c are alice-only.
+# A default kgateway install watches every namespace. If yours sets
+# discoveryNamespaceSelectors, add the label it selects on to these namespaces.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: infra
+  labels: {app.kubernetes.io/part-of: snellius-demo}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-a
+  labels: {app.kubernetes.io/part-of: snellius-demo}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-b
+  labels: {app.kubernetes.io/part-of: snellius-demo}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-c
+  labels: {app.kubernetes.io/part-of: snellius-demo}
+---
+# ---------- infra: the platform team's shared Gateway (alice only) ----------
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: shared
+  namespace: infra
+spec:
+  gatewayClassName: kgateway
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+      hostname: "*.shared.example"
+      allowedRoutes:
+        namespaces: {from: All}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: status, namespace: infra}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: status}}
+  template:
+    metadata: {labels: {app: status}}
+    spec:
+      containers:
+        - {name: app, image: "mccutchen/go-httpbin:v2.15.0", ports: [{containerPort: 8080}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: status, namespace: infra}
+spec:
+  selector: {app: status}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: platform-status, namespace: infra}
+spec:
+  parentRefs: [{name: shared}]
+  hostnames: [status.shared.example]
+  rules:
+    - backendRefs: [{name: status, port: 80}]
+---
+# ---------- team-a: bob's team, with its own Gateway ----------
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: team-a
+  namespace: team-a
+spec:
+  gatewayClassName: kgateway
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+      hostname: "*.team-a.example"
+      allowedRoutes:
+        namespaces: {from: All}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: web, namespace: team-a}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: web}}
+  template:
+    metadata: {labels: {app: web}}
+    spec:
+      containers:
+        - {name: app, image: "mccutchen/go-httpbin:v2.15.0", ports: [{containerPort: 8080}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: web, namespace: team-a}
+spec:
+  selector: {app: web}
+  ports: [{port: 80, targetPort: 8080}]
+---
+# Use case 1: bob reads this route, but its Gateway lives in infra.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: web, namespace: team-a}
+spec:
+  parentRefs: [{name: shared, namespace: infra}]
+  hostnames: [web.shared.example]
+  rules:
+    - backendRefs: [{name: web, port: 80}]
+---
+# Use case 2: bob reads the route and its Gateway, but the backend lives in team-c.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: orders, namespace: team-a}
+spec:
+  parentRefs: [{name: team-a}]
+  hostnames: [orders.team-a.example]
+  rules:
+    - matches: [{path: {type: PathPrefix, value: /pay}}]
+      backendRefs: [{name: payments, namespace: team-c, port: 80}]
+    - backendRefs: [{name: web, port: 80}]
+---
+# Use case 6: a broken route bob can see. Service web-v2 does not exist.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: broken, namespace: team-a}
+spec:
+  parentRefs: [{name: team-a}]
+  hostnames: [broken.team-a.example]
+  rules:
+    - backendRefs: [{name: web-v2, port: 80}]
+---
+# ---------- team-b: bob's second team ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: catalog, namespace: team-b}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: catalog}}
+  template:
+    metadata: {labels: {app: catalog}}
+    spec:
+      containers:
+        - {name: app, image: "mccutchen/go-httpbin:v2.15.0", ports: [{containerPort: 8080}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: catalog, namespace: team-b}
+spec:
+  selector: {app: catalog}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: catalog, namespace: team-b}
+spec:
+  parentRefs: [{name: shared, namespace: infra}]
+  hostnames: [catalog.shared.example]
+  rules:
+    - backendRefs: [{name: catalog, port: 80}]
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: Backend
+metadata: {name: partner-api, namespace: team-b}
+spec:
+  type: Static
+  static:
+    hosts: [{host: catalog.team-b.svc.cluster.local, port: 80}]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: partner, namespace: team-b}
+spec:
+  parentRefs: [{name: team-a, namespace: team-a}]
+  hostnames: [partner.team-a.example]
+  rules:
+    - backendRefs: [{group: gateway.kgateway.dev, kind: Backend, name: partner-api}]
+---
+# Delegation: parent route on the team-a Gateway hands /shop to a child route in team-b.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: shop, namespace: team-b}
+spec:
+  parentRefs: [{name: team-a, namespace: team-a}]
+  hostnames: [shop.team-a.example]
+  rules:
+    - matches: [{path: {type: PathPrefix, value: /shop}}]
+      backendRefs: [{group: gateway.networking.k8s.io, kind: HTTPRoute, name: shop-items, namespace: team-b}]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: shop-items, namespace: team-b}
+spec:
+  rules:
+    - matches: [{path: {type: PathPrefix, value: /shop/items}}]
+      backendRefs: [{name: catalog, port: 80}]
+---
+# ---------- team-c: another team bob may not read ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: payments, namespace: team-c}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: payments}}
+  template:
+    metadata: {labels: {app: payments}}
+    spec:
+      containers:
+        - {name: app, image: "mccutchen/go-httpbin:v2.15.0", ports: [{containerPort: 8080}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: payments, namespace: team-c}
+spec:
+  selector: {app: payments}
+  ports: [{port: 80, targetPort: 8080}]
+---
+# Lets team-a's orders route use the payments Service.
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata: {name: allow-team-a-routes, namespace: team-c}
+spec:
+  from: [{group: gateway.networking.k8s.io, kind: HTTPRoute, namespace: team-a}]
+  to: [{group: "", kind: Service, name: payments}]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: billing, namespace: team-c}
+spec:
+  parentRefs: [{name: shared, namespace: infra}]
+  hostnames: [billing.shared.example]
+  rules:
+    - backendRefs: [{name: payments, port: 80}]
+---
+# Use cases 3 and 4: a broken route on bob's Gateway that only alice can read.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: internal-admin, namespace: team-c}
+spec:
+  parentRefs: [{name: team-a, namespace: team-a}]
+  hostnames: [admin.team-a.example]
+  rules:
+    - backendRefs: [{name: admin-v2, port: 80}]
+---
+# Use case 3: a route whose Gateway does not exist (alice sees the finding, bob sees nothing).
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: ghost, namespace: team-c}
+spec:
+  parentRefs: [{name: shared, namespace: infra, sectionName: https}]
+  hostnames: [ghost.shared.example]
+  rules:
+    - backendRefs: [{name: payments, port: 80}]

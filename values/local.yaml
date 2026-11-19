@@ -1,0 +1,4 @@
+# Snellius in local mode: no sign-in, reached with kubectl port-forward only.
+# Whoever can port-forward to it sees everything Snellius's ServiceAccount can read.
+auth:
+  mode: local

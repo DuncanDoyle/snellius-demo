@@ -1,0 +1,72 @@
+# RBAC for the two Keycloak users. The API server maps Keycloak groups to "oidc:<group>".
+# alice (group platform-admins): Snellius's "full read" cluster-wide, plus Events and CRDs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: snellius-demo-full-read
+  labels: {app.kubernetes.io/part-of: snellius-demo}
+rules:
+  - apiGroups: [gateway.networking.k8s.io, gateway.networking.x-k8s.io, gateway.kgateway.dev]
+    resources: ["*"]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [namespaces, pods, services, events]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [get, list, watch]
+  - apiGroups: [discovery.k8s.io]
+    resources: [endpointslices]
+    verbs: [get, list, watch]
+  - apiGroups: [apiextensions.k8s.io]
+    resources: [customresourcedefinitions]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: snellius-demo-platform-admins
+  labels: {app.kubernetes.io/part-of: snellius-demo}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: snellius-demo-full-read}
+subjects:
+  - {apiGroup: rbac.authorization.k8s.io, kind: Group, name: "oidc:platform-admins"}
+---
+# bob (group app-devs): the same read, but only inside team-a and team-b, through RoleBindings.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: snellius-demo-team-read
+  labels: {app.kubernetes.io/part-of: snellius-demo}
+rules:
+  - apiGroups: [gateway.networking.k8s.io, gateway.networking.x-k8s.io, gateway.kgateway.dev]
+    resources: ["*"]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [pods, services, events]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [get, list, watch]
+  - apiGroups: [discovery.k8s.io]
+    resources: [endpointslices]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: snellius-demo-app-devs
+  namespace: team-a
+  labels: {app.kubernetes.io/part-of: snellius-demo}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: snellius-demo-team-read}
+subjects:
+  - {apiGroup: rbac.authorization.k8s.io, kind: Group, name: "oidc:app-devs"}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: snellius-demo-app-devs
+  namespace: team-b
+  labels: {app.kubernetes.io/part-of: snellius-demo}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: snellius-demo-team-read}
+subjects:
+  - {apiGroup: rbac.authorization.k8s.io, kind: Group, name: "oidc:app-devs"}
