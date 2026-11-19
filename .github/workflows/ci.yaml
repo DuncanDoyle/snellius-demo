@@ -41,8 +41,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install kind
         run: |
-          curl -fsSLo kind "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64"
-          sudo install kind /usr/local/bin/kind
+          curl -fsSLo "$RUNNER_TEMP/kind" "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64"
+          sudo install "$RUNNER_TEMP/kind" /usr/local/bin/kind
       - name: Create the cluster
         run: |
           if [[ ${{ matrix.mode }} == secure ]]; then
