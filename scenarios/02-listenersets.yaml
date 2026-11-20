@@ -1,0 +1,112 @@
+# 02 ListenerSets: one Gateway, plus a ListenerSet and a route in each of two team namespaces.
+# Healthy. The Gateway accepts ListenerSets from namespaces of this scenario only.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-02-platform
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "02"}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-02-blue
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "02"}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-02-green
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "02"}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata: {name: edge, namespace: uc-02-platform}
+spec:
+  gatewayClassName: kgateway
+  allowedListeners:
+    namespaces:
+      from: Selector
+      selector: {matchLabels: {scenario: "02"}}
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+      hostname: "www.platform.example"
+---
+# ---------- blue team ----------
+apiVersion: gateway.networking.k8s.io/v1
+kind: ListenerSet
+metadata: {name: blue, namespace: uc-02-blue}
+spec:
+  parentRef: {name: edge, namespace: uc-02-platform}
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+      hostname: "blue.platform.example"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: app, namespace: uc-02-blue}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: app}}
+  template:
+    metadata: {labels: {app: app}}
+    spec:
+      containers:
+        - {name: app, image: "mccutchen/go-httpbin:v2.15.0", ports: [{containerPort: 8080}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: app, namespace: uc-02-blue}
+spec:
+  selector: {app: app}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: app, namespace: uc-02-blue}
+spec:
+  parentRefs: [{group: gateway.networking.k8s.io, kind: ListenerSet, name: blue}]
+  rules:
+    - backendRefs: [{name: app, port: 80}]
+---
+# ---------- green team ----------
+apiVersion: gateway.networking.k8s.io/v1
+kind: ListenerSet
+metadata: {name: green, namespace: uc-02-green}
+spec:
+  parentRef: {name: edge, namespace: uc-02-platform}
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+      hostname: "green.platform.example"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: app, namespace: uc-02-green}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: app}}
+  template:
+    metadata: {labels: {app: app}}
+    spec:
+      containers:
+        - {name: app, image: "mccutchen/go-httpbin:v2.15.0", ports: [{containerPort: 8080}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: app, namespace: uc-02-green}
+spec:
+  selector: {app: app}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: app, namespace: uc-02-green}
+spec:
+  parentRefs: [{group: gateway.networking.k8s.io, kind: ListenerSet, name: green}]
+  rules:
+    - backendRefs: [{name: app, port: 80}]

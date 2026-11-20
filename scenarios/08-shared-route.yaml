@@ -1,0 +1,55 @@
+# 08 Shared route: one HTTPRoute attached to two Gateways.
+# Healthy. The route has a status entry per Gateway.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-08-shared
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "08"}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata: {name: public, namespace: uc-08-shared}
+spec:
+  gatewayClassName: kgateway
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata: {name: internal, namespace: uc-08-shared}
+spec:
+  gatewayClassName: kgateway
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: status, namespace: uc-08-shared}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: status}}
+  template:
+    metadata: {labels: {app: status}}
+    spec:
+      containers:
+        - {name: app, image: "mccutchen/go-httpbin:v2.15.0", ports: [{containerPort: 8080}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: status, namespace: uc-08-shared}
+spec:
+  selector: {app: status}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: status, namespace: uc-08-shared}
+spec:
+  parentRefs: [{name: public}, {name: internal}]
+  hostnames: [status.shared.example]
+  rules:
+    - backendRefs: [{name: status, port: 80}]

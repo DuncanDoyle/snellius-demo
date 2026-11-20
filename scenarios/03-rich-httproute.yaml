@@ -1,0 +1,97 @@
+# 03 Rich HTTPRoute: path and header matches, and a 90/10 canary split across two Services.
+# Healthy.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-03-rich
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "03"}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata: {name: api, namespace: uc-03-rich}
+spec:
+  gatewayClassName: kgateway
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: api-v1, namespace: uc-03-rich}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: api, version: v1}}
+  template:
+    metadata: {labels: {app: api, version: v1}}
+    spec:
+      containers:
+        - {name: app, image: "mccutchen/go-httpbin:v2.15.0", ports: [{containerPort: 8080}]}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: api-v2, namespace: uc-03-rich}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: api, version: v2}}
+  template:
+    metadata: {labels: {app: api, version: v2}}
+    spec:
+      containers:
+        - {name: app, image: "mccutchen/go-httpbin:v2.15.0", ports: [{containerPort: 8080}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: api-v1, namespace: uc-03-rich}
+spec:
+  selector: {app: api, version: v1}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: api-v2, namespace: uc-03-rich}
+spec:
+  selector: {app: api, version: v2}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: docs, namespace: uc-03-rich}
+spec:
+  selector: {app: api, version: v1}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: api, namespace: uc-03-rich}
+spec:
+  parentRefs: [{name: api}]
+  hostnames: [api.rich.example]
+  rules:
+    # Testers opt in to v2 with a header.
+    - matches:
+        - path: {type: PathPrefix, value: /api}
+          headers: [{name: x-canary, value: "always"}]
+      backendRefs: [{name: api-v2, port: 80}]
+    # Everyone else: 90 % to v1, 10 % to v2.
+    - matches: [{path: {type: PathPrefix, value: /api}}]
+      backendRefs:
+        - {name: api-v1, port: 80, weight: 90}
+        - {name: api-v2, port: 80, weight: 10}
+    - matches:
+        - path: {type: Exact, value: /docs}
+        - path: {type: PathPrefix, value: /docs/}
+      backendRefs: [{name: docs, port: 80}]
+---
+# The legacy path redirects to the new one.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: legacy, namespace: uc-03-rich}
+spec:
+  parentRefs: [{name: api}]
+  hostnames: [api.rich.example]
+  rules:
+    - matches: [{path: {type: PathPrefix, value: /v0}}]
+      filters:
+        - type: RequestRedirect
+          requestRedirect: {path: {type: ReplacePrefixMatch, replacePrefixMatch: /api}, statusCode: 301}

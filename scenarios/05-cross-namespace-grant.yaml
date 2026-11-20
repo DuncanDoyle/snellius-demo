@@ -1,0 +1,58 @@
+# 05 Cross-namespace with ReferenceGrant: a route sends traffic to a Service in another namespace.
+# Healthy. The ReferenceGrant in the backend's namespace allows it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-05-frontend
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "05"}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-05-backend
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "05"}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata: {name: web, namespace: uc-05-frontend}
+spec:
+  gatewayClassName: kgateway
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: orders, namespace: uc-05-frontend}
+spec:
+  parentRefs: [{name: web}]
+  hostnames: [orders.grant.example]
+  rules:
+    - backendRefs: [{name: orders, namespace: uc-05-backend, port: 80}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: orders, namespace: uc-05-backend}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: orders}}
+  template:
+    metadata: {labels: {app: orders}}
+    spec:
+      containers:
+        - {name: app, image: "mccutchen/go-httpbin:v2.15.0", ports: [{containerPort: 8080}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: orders, namespace: uc-05-backend}
+spec:
+  selector: {app: orders}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata: {name: allow-frontend-routes, namespace: uc-05-backend}
+spec:
+  from: [{group: gateway.networking.k8s.io, kind: HTTPRoute, namespace: uc-05-frontend}]
+  to: [{group: "", kind: Service, name: orders}]

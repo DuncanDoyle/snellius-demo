@@ -1,0 +1,35 @@
+# 14 Listener conflict: a ListenerSet adds a listener with the same port and hostname as one of the Gateway's.
+# Problem: the controller marks the ListenerSet's listener Conflicted with reason HostnameConflict.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-14-listener-conflict
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "14"}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata: {name: edge, namespace: uc-14-listener-conflict}
+spec:
+  gatewayClassName: kgateway
+  allowedListeners: {namespaces: {from: Same}}
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+      hostname: www.conflict.example
+---
+# Listener www has the same port and hostname as the Gateway's http listener. Listener api is fine.
+apiVersion: gateway.networking.k8s.io/v1
+kind: ListenerSet
+metadata: {name: team, namespace: uc-14-listener-conflict}
+spec:
+  parentRef: {name: edge}
+  listeners:
+    - name: www
+      port: 80
+      protocol: HTTP
+      hostname: www.conflict.example
+    - name: api
+      port: 80
+      protocol: HTTP
+      hostname: api.conflict.example
