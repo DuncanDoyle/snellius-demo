@@ -1,0 +1,76 @@
+# 04 Route delegation: a parent route hands /shop to every route in another namespace.
+# Healthy. The child routes match inside /shop, so the parent keeps both.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-04-edge
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "04"}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-04-shop
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "04"}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata: {name: edge, namespace: uc-04-edge}
+spec:
+  gatewayClassName: kgateway
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: shop, namespace: uc-04-edge}
+spec:
+  parentRefs: [{name: edge}]
+  hostnames: [shop.delegation.example]
+  rules:
+    - matches: [{path: {type: PathPrefix, value: /shop}}]
+      # Name "*" selects every HTTPRoute in the namespace.
+      backendRefs: [{group: gateway.networking.k8s.io, kind: HTTPRoute, name: "*", namespace: uc-04-shop}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: shop, namespace: uc-04-shop}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: shop}}
+  template:
+    metadata: {labels: {app: shop}}
+    spec:
+      containers:
+        - {name: app, image: "mccutchen/go-httpbin:v2.15.0", ports: [{containerPort: 8080}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: items, namespace: uc-04-shop}
+spec:
+  selector: {app: shop}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: cart, namespace: uc-04-shop}
+spec:
+  selector: {app: shop}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: items, namespace: uc-04-shop}
+spec:
+  rules:
+    - matches: [{path: {type: PathPrefix, value: /shop/items}}]
+      backendRefs: [{name: items, port: 80}]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: cart, namespace: uc-04-shop}
+spec:
+  rules:
+    - matches: [{path: {type: PathPrefix, value: /shop/cart}}]
+      backendRefs: [{name: cart, port: 80}]

@@ -1,0 +1,143 @@
+# 19 Platform and teams: a platform Gateway, two teams with their own routes and policies, and shared backends.
+# Healthy. The Gateway accepts routes only from namespaces labelled platform-access: "true".
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-19-infra
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "19"}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-19-team-a
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "19", platform-access: "true"}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-19-team-b
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "19", platform-access: "true"}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-19-shared
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "19"}
+---
+# ---------- infra: the platform team's Gateway ----------
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata: {name: platform, namespace: uc-19-infra}
+spec:
+  gatewayClassName: kgateway
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+      hostname: "*.platform.example"
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector: {matchLabels: {platform-access: "true"}}
+---
+# ---------- shared: backends both teams use ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: accounts, namespace: uc-19-shared}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: accounts}}
+  template:
+    metadata: {labels: {app: accounts}}
+    spec:
+      containers:
+        - {name: app, image: "mccutchen/go-httpbin:v2.15.0", ports: [{containerPort: 8080}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: accounts, namespace: uc-19-shared}
+spec:
+  selector: {app: accounts}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: notifications, namespace: uc-19-shared}
+spec:
+  selector: {app: accounts}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata: {name: allow-team-a, namespace: uc-19-shared}
+spec:
+  from: [{group: gateway.networking.k8s.io, kind: HTTPRoute, namespace: uc-19-team-a}]
+  to: [{group: "", kind: Service, name: accounts}]
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata: {name: allow-team-b, namespace: uc-19-shared}
+spec:
+  from: [{group: gateway.networking.k8s.io, kind: HTTPRoute, namespace: uc-19-team-b}]
+  to:
+    - {group: "", kind: Service, name: accounts}
+    - {group: "", kind: Service, name: notifications}
+---
+# ---------- team-a ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: storefront, namespace: uc-19-team-a}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: storefront}}
+  template:
+    metadata: {labels: {app: storefront}}
+    spec:
+      containers:
+        - {name: app, image: "mccutchen/go-httpbin:v2.15.0", ports: [{containerPort: 8080}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: storefront, namespace: uc-19-team-a}
+spec:
+  selector: {app: storefront}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: storefront, namespace: uc-19-team-a}
+spec:
+  parentRefs: [{name: platform, namespace: uc-19-infra}]
+  hostnames: [shop.platform.example]
+  rules:
+    - matches: [{path: {type: PathPrefix, value: /account}}]
+      backendRefs: [{name: accounts, namespace: uc-19-shared, port: 80}]
+    - backendRefs: [{name: storefront, port: 80}]
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: TrafficPolicy
+metadata: {name: storefront-timeout, namespace: uc-19-team-a}
+spec:
+  targetRefs: [{group: gateway.networking.k8s.io, kind: HTTPRoute, name: storefront}]
+  timeouts: {request: 15s}
+---
+# ---------- team-b ----------
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: accounts, namespace: uc-19-team-b}
+spec:
+  parentRefs: [{name: platform, namespace: uc-19-infra}]
+  hostnames: [accounts.platform.example]
+  rules:
+    - matches: [{path: {type: PathPrefix, value: /notify}}]
+      backendRefs: [{name: notifications, namespace: uc-19-shared, port: 80}]
+    - backendRefs: [{name: accounts, namespace: uc-19-shared, port: 80}]
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: TrafficPolicy
+metadata: {name: accounts-rate-limit, namespace: uc-19-team-b}
+spec:
+  targetRefs: [{group: gateway.networking.k8s.io, kind: HTTPRoute, name: accounts}]
+  rateLimit:
+    local:
+      tokenBucket: {maxTokens: 20, tokensPerFill: 20, fillInterval: 1s}

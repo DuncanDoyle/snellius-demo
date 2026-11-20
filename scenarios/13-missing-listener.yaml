@@ -1,0 +1,46 @@
+# 13 Route to a missing listener: a parentRef names a listener (sectionName) the Gateway does not have.
+# Problem: the route's Accepted is False with reason NoMatchingParent.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-13-missing-listener
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "13"}
+---
+# Only an HTTP listener; there is no listener named https.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata: {name: web, namespace: uc-13-missing-listener}
+spec:
+  gatewayClassName: kgateway
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: login, namespace: uc-13-missing-listener}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: login}}
+  template:
+    metadata: {labels: {app: login}}
+    spec:
+      containers:
+        - {name: app, image: "mccutchen/go-httpbin:v2.15.0", ports: [{containerPort: 8080}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: login, namespace: uc-13-missing-listener}
+spec:
+  selector: {app: login}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: login, namespace: uc-13-missing-listener}
+spec:
+  parentRefs: [{name: web, sectionName: https}]
+  hostnames: [login.listener.example]
+  rules:
+    - backendRefs: [{name: login, port: 80}]

@@ -1,0 +1,51 @@
+# 12 Cross-namespace without ReferenceGrant: a route sends traffic to a Service in another namespace.
+# Problem: no ReferenceGrant allows it, so ResolvedRefs is False with reason RefNotPermitted.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-12-frontend
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "12"}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-12-backend
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "12"}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata: {name: web, namespace: uc-12-frontend}
+spec:
+  gatewayClassName: kgateway
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: payments, namespace: uc-12-frontend}
+spec:
+  parentRefs: [{name: web}]
+  hostnames: [payments.nogrant.example]
+  rules:
+    - backendRefs: [{name: payments, namespace: uc-12-backend, port: 80}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: payments, namespace: uc-12-backend}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: payments}}
+  template:
+    metadata: {labels: {app: payments}}
+    spec:
+      containers:
+        - {name: app, image: "mccutchen/go-httpbin:v2.15.0", ports: [{containerPort: 8080}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: payments, namespace: uc-12-backend}
+spec:
+  selector: {app: payments}
+  ports: [{port: 80, targetPort: 8080}]

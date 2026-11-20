@@ -1,0 +1,61 @@
+# 21 Route rejected by the proxy: kgateway accepts a regex path that the proxies then reject.
+# Problem: the Gateway stays Programmed=True, but its two proxies reject its route config. Only this Gateway is affected.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-21-route-nack
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "21"}
+---
+# Two proxies, so the UI counts the rejection per proxy.
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: GatewayParameters
+metadata: {name: two-proxies, namespace: uc-21-route-nack}
+spec:
+  kube:
+    deployment: {replicas: 2}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata: {name: web, namespace: uc-21-route-nack}
+spec:
+  gatewayClassName: kgateway
+  infrastructure:
+    parametersRef: {group: gateway.kgateway.dev, kind: GatewayParameters, name: two-proxies}
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: lookup, namespace: uc-21-route-nack}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: lookup}}
+  template:
+    metadata: {labels: {app: lookup}}
+    spec:
+      containers:
+        - {name: app, image: "mccutchen/go-httpbin:v2.15.0", ports: [{containerPort: 8080}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: lookup, namespace: uc-21-route-nack}
+spec:
+  selector: {app: lookup}
+  ports: [{port: 80, targetPort: 8080}]
+---
+# The regex is valid, but too big for the proxy's regex engine (program size limit 100).
+# scenarios.sh applies it once the proxies are ready, as a bad change to a running Gateway.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: lookup
+  namespace: uc-21-route-nack
+  labels: {snellius-demo/apply: after-proxy-ready}
+spec:
+  parentRefs: [{name: web}]
+  hostnames: [lookup.nack.example]
+  rules:
+    - matches: [{path: {type: RegularExpression, value: "/lookup/[a-z0-9]{200}"}}]
+      backendRefs: [{name: lookup, port: 80}]
