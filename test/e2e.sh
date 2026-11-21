@@ -77,7 +77,8 @@ sign_in() {
   final=$("${CURL[@]}" -L -c "$jar" -b "$jar" -o /dev/null -w '%{url_effective}' \
     --data-urlencode "username=$user" --data-urlencode "password@$TMP/$user.pw" -d credentialId= "$action")
   rm -f "$TMP/$user.pw"
-  check "$user: sign-in ends on" "$final" "$BASE/"
+  # A fresh sign-in returns with #signed-in, which plays the sign-in animation.
+  check "$user: sign-in ends on" "$final" "$BASE/#signed-in"
 }
 
 api() { curl -fsS --max-time 30 -b "$TMP/$1.jar" "$BASE$2"; }
