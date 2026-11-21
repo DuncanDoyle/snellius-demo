@@ -1,0 +1,54 @@
+# 17 Namespace not watched: a route targets a Gateway from a namespace kgateway does not watch.
+# Problem: kgateway never sees the route. Needs discoveryNamespaceSelectors that leave out uc-17-unwatched.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-17-gateway
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "17"}
+---
+# The selector in scenarios/README.md leaves out namespaces with kgateway-watch: "false".
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-17-unwatched
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "17", kgateway-watch: "false"}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata: {name: web, namespace: uc-17-gateway}
+spec:
+  gatewayClassName: kgateway
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+      allowedRoutes:
+        namespaces: {from: All}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: reports, namespace: uc-17-unwatched}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: reports}}
+  template:
+    metadata: {labels: {app: reports}}
+    spec:
+      containers:
+        - {name: app, image: "mccutchen/go-httpbin:v2.15.0", ports: [{containerPort: 8080}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: reports, namespace: uc-17-unwatched}
+spec:
+  selector: {app: reports}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: reports, namespace: uc-17-unwatched}
+spec:
+  parentRefs: [{name: web, namespace: uc-17-gateway}]
+  hostnames: [reports.unwatched.example]
+  rules:
+    - backendRefs: [{name: reports, port: 80}]

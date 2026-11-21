@@ -1,0 +1,176 @@
+# 09 Big Gateway: 70 routes on one Gateway, so the map opens on problems only and lists page.
+# Healthy. Every route sends traffic to the same Service.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-09-big
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "09"}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata: {name: big, namespace: uc-09-big}
+spec:
+  gatewayClassName: kgateway
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: app, namespace: uc-09-big}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: app}}
+  template:
+    metadata: {labels: {app: app}}
+    spec:
+      containers:
+        - {name: app, image: "mccutchen/go-httpbin:v2.15.0", ports: [{containerPort: 8080}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: app, namespace: uc-09-big}
+spec:
+  selector: {app: app}
+  ports: [{port: 80, targetPort: 8080}]
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-01, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-01.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-02, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-02.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-03, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-03.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-04, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-04.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-05, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-05.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-06, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-06.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-07, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-07.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-08, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-08.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-09, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-09.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-10, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-10.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-11, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-11.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-12, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-12.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-13, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-13.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-14, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-14.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-15, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-15.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-16, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-16.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-17, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-17.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-18, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-18.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-19, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-19.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-20, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-20.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-21, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-21.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-22, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-22.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-23, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-23.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-24, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-24.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-25, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-25.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-26, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-26.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-27, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-27.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-28, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-28.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-29, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-29.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-30, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-30.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-31, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-31.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-32, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-32.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-33, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-33.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-34, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-34.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-35, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-35.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-36, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-36.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-37, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-37.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-38, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-38.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-39, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-39.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-40, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-40.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-41, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-41.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-42, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-42.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-43, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-43.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-44, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-44.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-45, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-45.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-46, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-46.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-47, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-47.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-48, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-48.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-49, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-49.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-50, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-50.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-51, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-51.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-52, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-52.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-53, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-53.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-54, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-54.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-55, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-55.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-56, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-56.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-57, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-57.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-58, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-58.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-59, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-59.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-60, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-60.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-61, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-61.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-62, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-62.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-63, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-63.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-64, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-64.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-65, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-65.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-66, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-66.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-67, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-67.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-68, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-68.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-69, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-69.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}
+---
+{apiVersion: gateway.networking.k8s.io/v1, kind: HTTPRoute, metadata: {name: svc-70, namespace: uc-09-big}, spec: {parentRefs: [{name: big}], hostnames: [svc-70.big.example], rules: [{backendRefs: [{name: app, port: 80}]}]}}

@@ -21,11 +21,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: shellcheck
-        run: shellcheck -x install.sh uninstall.sh show-credentials.sh kind/create.sh test/e2e.sh lib/common.sh
+        run: shellcheck -x install.sh uninstall.sh show-credentials.sh scenarios.sh kind/create.sh test/e2e.sh lib/common.sh
       - name: yamllint
         run: |
           pip install --quiet yamllint
-          yamllint -d '{extends: relaxed, rules: {line-length: disable}}' manifests values kind .github
+          yamllint -d '{extends: relaxed, rules: {line-length: disable}}' manifests values kind scenarios .github
 
   e2e:
     needs: lint

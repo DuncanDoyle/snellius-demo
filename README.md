@@ -96,6 +96,16 @@ kubectl --context <your-context> -n snellius logs deploy/ui-snellius | grep '"sn
 
 The [Snellius README](https://github.com/DuncanDoyle/snellius#what-each-user-sees) has the full rules for what a restricted user sees.
 
+## Walkthrough scenarios
+
+[scenarios/](scenarios/README.md) has 22 small scenarios to deploy next to the demo. Each one shows a healthy structure, such as ListenerSets or route delegation, or one problem and the exact finding it raises, such as a missing Service or a route the proxies reject.
+
+```sh
+./scenarios.sh --context <your-context> list
+./scenarios.sh --context <your-context> up 11 16
+./scenarios.sh --context <your-context> down all
+```
+
 ## How secure mode works
 
 - **One issuer URL.** The browser, the API server and the Snellius pod all use `https://<issuer-host>:30443/realms/snellius`. It must be the same string everywhere, because the API server compares it with the token's `iss` claim. Keycloak's Service port equals its NodePort, 30443, so the URL works through a node and through the Service alike. Inside the Snellius pod, a host alias points the issuer host at Keycloak's Service.
@@ -124,7 +134,7 @@ The [Snellius README](https://github.com/DuncanDoyle/snellius#what-each-user-see
 kind delete cluster --name snellius-demo             # if you used kind/create.sh
 ```
 
-`uninstall.sh` removes Snellius, Keycloak, the RBAC and the use cases. It removes kgateway and the Gateway API CRDs only if `install.sh` installed them. It does not change the API server's authentication config back. [docs/api-server-oidc.md](docs/api-server-oidc.md) says how, or delete the cluster.
+Remove any scenarios first, with `./scenarios.sh --context <your-context> down all`. `uninstall.sh` removes Snellius, Keycloak, the RBAC and the use cases. It removes kgateway and the Gateway API CRDs only if `install.sh` installed them. It does not change the API server's authentication config back. [docs/api-server-oidc.md](docs/api-server-oidc.md) says how, or delete the cluster.
 
 ## Licence
 

@@ -1,0 +1,88 @@
+# 10 Non-HTTP routes: a TCPRoute and a TLSRoute, each on its own listener.
+# Healthy. The TLS listener passes TLS through; the backend serves it with Secret secure-tls, which scenarios.sh creates.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uc-10-l4
+  labels: {app.kubernetes.io/part-of: snellius-demo, scenario: "10"}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata: {name: l4, namespace: uc-10-l4}
+spec:
+  gatewayClassName: kgateway
+  listeners:
+    - name: tcp
+      port: 9000
+      protocol: TCP
+      allowedRoutes: {kinds: [{kind: TCPRoute}]}
+    - name: tls
+      port: 8443
+      protocol: TLS
+      hostname: tls.l4.example
+      tls: {mode: Passthrough}
+      allowedRoutes: {kinds: [{kind: TLSRoute}]}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: plain, namespace: uc-10-l4}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: plain}}
+  template:
+    metadata: {labels: {app: plain}}
+    spec:
+      containers:
+        - {name: app, image: "mccutchen/go-httpbin:v2.15.0", ports: [{containerPort: 8080}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: plain, namespace: uc-10-l4}
+spec:
+  selector: {app: plain}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: secure, namespace: uc-10-l4}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: secure}}
+  template:
+    metadata: {labels: {app: secure}}
+    spec:
+      containers:
+        - name: app
+          image: "mccutchen/go-httpbin:v2.15.0"
+          ports: [{containerPort: 8443}]
+          env:
+            - {name: PORT, value: "8443"}
+            - {name: HTTPS_CERT_FILE, value: /tls/tls.crt}
+            - {name: HTTPS_KEY_FILE, value: /tls/tls.key}
+          volumeMounts: [{name: tls, mountPath: /tls, readOnly: true}]
+      volumes:
+        - {name: tls, secret: {secretName: secure-tls}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: secure, namespace: uc-10-l4}
+spec:
+  selector: {app: secure}
+  ports: [{port: 443, targetPort: 8443}]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: TCPRoute
+metadata: {name: plain, namespace: uc-10-l4}
+spec:
+  parentRefs: [{name: l4, sectionName: tcp}]
+  rules:
+    - backendRefs: [{name: plain, port: 80}]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: TLSRoute
+metadata: {name: secure, namespace: uc-10-l4}
+spec:
+  parentRefs: [{name: l4, sectionName: tls}]
+  hostnames: [tls.l4.example]
+  rules:
+    - backendRefs: [{name: secure, port: 443}]
